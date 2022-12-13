@@ -3,7 +3,7 @@ add_executable(afa-emptiness-checker
 
 target_link_libraries(afa-emptiness-checker PUBLIC mata re2 simlib cudd)
 
-target_include_directories(afa-emptiness-checker PRIVATE ${PROJECT_SOURCE_DIR}/mata/include)
+target_include_directories(afa-emptiness-checker PRIVATE ${PROJECT_SOURCE_DIR}/mata/include ${PROJECT_SOURCE_DIR}/mata/3rdparty)
 # target_link_libraries(afa-emptiness-checker PRIVATE mata re2 simlib ${CMAKE_BINARY_DIR}/mata/3rdparty/cudd/lib/libcudd.a)
 target_link_directories(afa-emptiness-checker PRIVATE
         ${PROJECT_BINARY_DIR}
