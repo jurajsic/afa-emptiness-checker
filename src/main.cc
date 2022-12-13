@@ -7,7 +7,7 @@
 #include <mata/mintermization.hh>
 
 unsigned get_aut_num(std::string aut_string) {
-    if (aut_string.compare(0, 3, "aut")) {
+    if (aut_string.compare(0, 3, "aut") == 0) {
         return std::stoul(aut_string.substr(3));
     } else {
         std::cerr << "Expecting autN, something else was found" << std::endl;
