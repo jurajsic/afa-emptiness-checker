@@ -38,7 +38,10 @@ int main(int argc, char** argv) {
     }
 
     std::string line;
-    std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
+    std::unordered_map<unsigned, std::istringstream> num_to_operation;
+    std::vector<unsigned> input_aut_nums;
+    std::vector<Mata::IntermediateAut> input_aut_inter_auts;
+    unsigned aut_to_test_emptiness;
     while(std::getline(input, line)) {
         line.erase(std::remove(line.begin(), line.end(), '('), line.end());
         line.erase(std::remove(line.begin(), line.end(), ')'), line.end());
@@ -55,40 +58,68 @@ int main(int argc, char** argv) {
                 std::cerr << "ERROR: Could not open file " << path_to_automaton << std::endl;
                 return -1;
             }
-
-            Mata::Mintermization mintermization;
-            auto inter_aut = mintermization.mintermize(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_file, true))[0]);
-            num_to_aut[load_aut_num] = Mata::Nfa::construct(inter_aut);
+            input_aut_nums.push_back(load_aut_num);
+            input_aut_inter_auts.push_back(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_file, true))[0]);
         } else if (token == "is_empty") {
             line_stream >> token;
-            unsigned res_aut_num = get_aut_num(token);
-            if (Mata::Nfa::is_lang_empty(num_to_aut.at(res_aut_num))) {
-                std::cout << "EMPTY" << std::endl;
-                return 0;
-            } else {
-                std::cout << "NOT EMPTY" << std::endl;
-                return 0;
-            }
+            aut_to_test_emptiness = get_aut_num(token);
         } else {
             unsigned res_aut_num = get_aut_num(token);
             line_stream >> token; //'='
-            std::string operation;
-            line_stream >> operation;
-            line_stream >> token;
-            unsigned operand_aut_num = get_aut_num(token);
-            num_to_aut[res_aut_num] = num_to_aut.at(operand_aut_num);
-            if (operation == "compl") {
-                Mata::Nfa::complement_in_place(num_to_aut.at(res_aut_num));
-            } else {
-                while (line_stream >> token) {
-                    operand_aut_num = get_aut_num(token);
-                    if (operation == "union") {
-                        num_to_aut[res_aut_num] = Mata::Nfa::uni(num_to_aut.at(res_aut_num), num_to_aut.at(operand_aut_num));
-                    } else { //intersection
-                        num_to_aut[res_aut_num] = Mata::Nfa::intersection(num_to_aut.at(res_aut_num), num_to_aut.at(operand_aut_num));
-                    }
+
+            num_to_operation[res_aut_num] = std::move(line_stream);
+        }
+    }
+
+
+    Mata::Mintermization mintermization;
+    auto mintermized_input_inter_auts = mintermization.mintermize(input_aut_inter_auts);
+    input_aut_inter_auts.clear();
+
+    std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
+    Mata::Nfa::OnTheFlyAlphabet alphabet;
+    for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
+        num_to_aut[input_aut_nums[i]] = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
+    }
+
+    std::function<Mata::Nfa::Nfa& (unsigned)> getAutFromNum;
+    getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet](unsigned aut_num) -> Mata::Nfa::Nfa& {
+        auto it = num_to_aut.find(aut_num);
+        if (it != num_to_aut.end()) {
+            return it->second;
+        }
+
+
+        std::istringstream &operation_string_stream = num_to_operation.at(aut_num);
+        std::string operation;
+        operation_string_stream >> operation;
+        std::string token;
+        operation_string_stream >> token;
+        Mata::Nfa::Nfa result = getAutFromNum(get_aut_num(token));
+
+        if (operation == "compl") {
+            Mata::Nfa::complement(num_to_aut.at(aut_num), alphabet);
+        } else {
+            while (operation_string_stream >> token) {
+                Mata::Nfa::Nfa &operand_afa = getAutFromNum(get_aut_num(token));
+                if (operation == "union") {
+                    result = Mata::Nfa::uni(result, operand_afa);
+                } else { //intersection
+                    result = Mata::Nfa::intersection(result, operand_afa);
                 }
             }
         }
+
+        // TODO might add simulation here (or maybe after each operation?)
+        num_to_aut[aut_num] = std::move(result);
+        return num_to_aut.at(aut_num);
+    };
+
+    if (Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
+        std::cout << "EMPTY" << std::endl;
+        return 0;
+    } else {
+        std::cout << "NOT EMPTY" << std::endl;
+        return 0;
     }
 }
