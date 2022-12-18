@@ -2,9 +2,8 @@
 #include <fstream>
 #include <filesystem>
 #include <unordered_map>
-#include <mata/nfa.hh>
-#include <mata/inter-aut.hh>
-#include <mata/mintermization.hh>
+#include <sstream>
+#include <vector>
 
 unsigned get_aut_num(std::string aut_string) {
     if (aut_string.compare(0, 3, "aut") == 0) {
@@ -38,7 +37,8 @@ int main(int argc, char** argv) {
     }
 
     std::string line;
-    std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
+    // CHANGE THIS: void* should be pointer to mona automaton
+    std::unordered_map<unsigned, void*> num_to_aut;
     while(std::getline(input, line)) {
         line.erase(std::remove(line.begin(), line.end(), '('), line.end());
         line.erase(std::remove(line.begin(), line.end(), ')'), line.end());
@@ -49,20 +49,19 @@ int main(int argc, char** argv) {
         if (token == "load_automaton") {
             line_stream >> token;
             unsigned load_aut_num = get_aut_num(token);
-            std::filesystem::path path_to_automaton = path_to_automata/(token + ".mata");
+            std::filesystem::path path_to_automaton = path_to_automata/(token + "_mona.mata");
             std::ifstream aut_file(path_to_automaton);
             if (!aut_file.is_open()) {
                 std::cerr << "ERROR: Could not open file " << path_to_automaton << std::endl;
                 return -1;
             }
-
-            Mata::Mintermization mintermization;
-            auto inter_aut = mintermization.mintermize(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_file, true))[0]);
-            num_to_aut[load_aut_num] = Mata::Nfa::construct(inter_aut);
+            // CHANGE THIS: this should load the automaton from file
+            num_to_aut[load_aut_num] = load_automaton(aut_file);
         } else if (token == "is_empty") {
             line_stream >> token;
             unsigned res_aut_num = get_aut_num(token);
-            if (Mata::Nfa::is_lang_empty(num_to_aut.at(res_aut_num))) {
+            // CHANGE THIS: test emptiness of automaton
+            if (test_emptiness_of_automaton(num_to_aut[res_aut_num])) {
                 std::cout << "EMPTY" << std::endl;
                 return 0;
             } else {
@@ -74,19 +73,31 @@ int main(int argc, char** argv) {
             line_stream >> token; //'='
             std::string operation;
             line_stream >> operation;
-            line_stream >> token;
-            unsigned operand_aut_num = get_aut_num(token);
-            num_to_aut[res_aut_num] = num_to_aut.at(operand_aut_num);
+
+            // CHANGE THIS: void* should be pointer to mona automaton
+            std::vector<void*> operands;
+            while (line_stream >> token) {
+                operands.push_back(num_to_aut.at(get_aut_num(token)));
+            }
+
+            if (operands.size() == 0) {
+                std::cerr << "No operand for some operation" << std::endl;
+                return -1;
+            }
+
             if (operation == "compl") {
-                Mata::Nfa::complement_in_place(num_to_aut.at(res_aut_num));
+                if (operands.size() != 1) {
+                    std::cerr << "Complementing can be done with only one automaton" << std::endl;
+                }
+                // CHANGE THIS: get complement of mona automaton
+                num_to_aut[res_aut_num] = get_complement_of_automaton(operands[0]);
             } else {
-                while (line_stream >> token) {
-                    operand_aut_num = get_aut_num(token);
-                    if (operation == "union") {
-                        num_to_aut[res_aut_num] = Mata::Nfa::uni(num_to_aut.at(res_aut_num), num_to_aut.at(operand_aut_num));
-                    } else { //intersection
-                        num_to_aut[res_aut_num] = Mata::Nfa::intersection(num_to_aut.at(res_aut_num), num_to_aut.at(operand_aut_num));
-                    }
+                if (operation == "union") {
+                    // CHANGE THIS: get union of automata saved in vector
+                    num_to_aut[res_aut_num] = get_union_of_automata(operands);
+                } else { //intersection
+                    // CHANGE THIS: get intersection of automata saved in vector
+                    num_to_aut[res_aut_num] = get_intersection_of_automata(operands);
                 }
             }
         }
