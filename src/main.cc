@@ -6,6 +6,13 @@
 #include <mata/inter-aut.hh>
 #include <mata/mintermization.hh>
 
+// TODO: set this by arguments?
+// the size of the automaton should be reduced after loading it, or when it is assigned the result of operation
+const bool REDUCE_SIZE_OF_RESULT = true;
+
+// during computing union/intersection of automata, the result is reduced after 
+const bool REDUCE_SIZE_AFTER_OPERATION = true;
+
 unsigned get_aut_num(std::string aut_string) {
     if (aut_string.compare(0, 3, "aut") == 0) {
         return std::stoul(aut_string.substr(3));
@@ -79,7 +86,11 @@ int main(int argc, char** argv) {
     std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
     Mata::Nfa::OnTheFlyAlphabet alphabet;
     for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
-        num_to_aut[input_aut_nums[i]] = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
+        if (REDUCE_SIZE_OF_RESULT) {
+            num_to_aut[input_aut_nums[i]] = Mata::Nfa::reduce(Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet));
+        } else {
+            num_to_aut[input_aut_nums[i]] = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
+        }
     }
 
     std::function<Mata::Nfa::Nfa& (unsigned)> getAutFromNum;
@@ -98,19 +109,28 @@ int main(int argc, char** argv) {
         Mata::Nfa::Nfa result = getAutFromNum(get_aut_num(token));
 
         if (operation == "compl") {
-            Mata::Nfa::complement(num_to_aut.at(aut_num), alphabet);
+            // TODO add minimization into the determinization which is done during the complement (and remove sink states of complement automaton)
+            result = Mata::Nfa::complement(num_to_aut.at(aut_num), alphabet);
+            // TODO remove this after we add minimization to complement
+            result = Mata::Nfa::reduce(result);
         } else {
             while (operation_string_stream >> token) {
                 Mata::Nfa::Nfa &operand_afa = getAutFromNum(get_aut_num(token));
+                // TODO: maybe add operation and/union of multiple automata to mata
                 if (operation == "union") {
                     result = Mata::Nfa::uni(result, operand_afa);
                 } else { //intersection
                     result = Mata::Nfa::intersection(result, operand_afa);
                 }
+                if (REDUCE_SIZE_AFTER_OPERATION) {
+                    result = Mata::Nfa::reduce(result);
+                }
+            }
+            if (REDUCE_SIZE_OF_RESULT && !REDUCE_SIZE_AFTER_OPERATION) {
+                result = Mata::Nfa::reduce(result);
             }
         }
 
-        // TODO might add simulation here (or maybe after each operation?)
         num_to_aut[aut_num] = std::move(result);
         return num_to_aut.at(aut_num);
     };
