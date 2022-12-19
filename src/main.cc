@@ -118,8 +118,10 @@ int main(int argc, char** argv) {
                 Mata::Nfa::Nfa &operand_afa = getAutFromNum(get_aut_num(token));
                 // TODO: maybe add operation and/union of multiple automata to mata
                 if (operation == "union") {
+                    // TODO union in place add here after it is added in mata and reduce at end
                     result = Mata::Nfa::uni(result, operand_afa);
                 } else { //intersection
+                    // TODO reduce only here after union in place is added
                     result = Mata::Nfa::intersection(result, operand_afa);
                 }
                 if (REDUCE_SIZE_AFTER_OPERATION) {
