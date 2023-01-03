@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 
 unsigned get_aut_num(std::string aut_string) {
     if (aut_string.compare(0, 3, "aut") == 0) {
@@ -56,12 +57,13 @@ int main(int argc, char** argv) {
                 return -1;
             }
             // CHANGE THIS: this should load the automaton from file
-            num_to_aut[load_aut_num] = load_automaton(aut_file);
+            // num_to_aut[load_aut_num] = load_automaton(aut_file);
         } else if (token == "is_empty") {
             line_stream >> token;
             unsigned res_aut_num = get_aut_num(token);
             // CHANGE THIS: test emptiness of automaton
-            if (test_emptiness_of_automaton(num_to_aut[res_aut_num])) {
+            // if (test_emptiness_of_automaton(num_to_aut[res_aut_num])) {
+            if (true) {
                 std::cout << "EMPTY" << std::endl;
                 return 0;
             } else {
@@ -90,14 +92,14 @@ int main(int argc, char** argv) {
                     std::cerr << "Complementing can be done with only one automaton" << std::endl;
                 }
                 // CHANGE THIS: get complement of mona automaton
-                num_to_aut[res_aut_num] = get_complement_of_automaton(operands[0]);
+                // num_to_aut[res_aut_num] = get_complement_of_automaton(operands[0]);
             } else {
                 if (operation == "union") {
                     // CHANGE THIS: get union of automata saved in vector
-                    num_to_aut[res_aut_num] = get_union_of_automata(operands);
+                    // num_to_aut[res_aut_num] = get_union_of_automata(operands);
                 } else { //intersection
                     // CHANGE THIS: get intersection of automata saved in vector
-                    num_to_aut[res_aut_num] = get_intersection_of_automata(operands);
+                    // num_to_aut[res_aut_num] = get_intersection_of_automata(operands);
                 }
             }
         }
