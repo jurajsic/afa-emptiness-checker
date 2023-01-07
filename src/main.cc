@@ -106,23 +106,24 @@ int main(int argc, char** argv) {
         operation_string_stream >> operation;
         std::string token;
         operation_string_stream >> token;
-        Mata::Nfa::Nfa result = getAutFromNum(get_aut_num(token));
+        unsigned first_operand_num = get_aut_num(token);
+        Mata::Nfa::Nfa result;
 
         if (operation == "compl") {
             // TODO add minimization into the determinization which is done during the complement (and remove sink states of complement automaton)
-            result = Mata::Nfa::complement(num_to_aut.at(aut_num), alphabet);
+            result = Mata::Nfa::complement(getAutFromNum(first_operand_num), alphabet);
             // TODO remove this after we add minimization to complement
             result = Mata::Nfa::reduce(result);
         } else {
             while (operation_string_stream >> token) {
-                Mata::Nfa::Nfa &operand_afa = getAutFromNum(get_aut_num(token));
+                Mata::Nfa::Nfa &operand_nfa = getAutFromNum(get_aut_num(token));
                 // TODO: maybe add operation and/union of multiple automata to mata
                 if (operation == "union") {
                     // TODO union in place add here after it is added in mata and reduce at end
-                    result = Mata::Nfa::uni(result, operand_afa);
+                    result = Mata::Nfa::uni(result, operand_nfa);
                 } else { //intersection
                     // TODO reduce only here after union in place is added
-                    result = Mata::Nfa::intersection(result, operand_afa);
+                    result = Mata::Nfa::intersection(result, operand_nfa);
                 }
                 if (REDUCE_SIZE_AFTER_OPERATION) {
                     result = Mata::Nfa::reduce(result);
