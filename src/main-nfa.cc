@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     std::string arg = std::string(argv[1]);
 
     if (arg == "-h" || arg == "--help") {
-        std::cout << "Usage: Cemptiness-checker input.emp" << std::endl;
+        std::cout << "Usage: nfa-emptiness-checker input.emp" << std::endl;
         return 0;
     }
 
