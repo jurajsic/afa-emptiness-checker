@@ -68,7 +68,24 @@ int main(int argc, char** argv) {
                 return -1;
             }
             input_aut_nums.push_back(load_aut_num);
-            input_aut_inter_auts.push_back(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_file, true))[0]);
+            std::stringstream aut_with_split_transitions;
+            std::string line;
+            while(std::getline(aut_file, line)) {
+                if (!line.empty() && line[0] == 'q' && line.back() == ')') {
+                    std::string state_from_and_symbols = line.substr(0, line.find_last_of('('));
+                    std::string states_to = line.substr(line.find_last_of('('));
+                    std::string chars_to_remove = "()|";
+                    states_to.erase(std::remove_if(states_to.begin(), states_to.end(), [&chars_to_remove](unsigned char c) { return chars_to_remove.find(c) != std::string::npos; } ), states_to.end());
+                    std::stringstream ss(states_to);
+                    std::string state_to;
+                    while (ss >> state_to) {
+                        aut_with_split_transitions << state_from_and_symbols << state_to << std::endl;
+                    }
+                } else {
+                    aut_with_split_transitions << line << std::endl;
+                }
+            }
+            input_aut_inter_auts.push_back(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_with_split_transitions, true))[0]);
         } else if (token == "is_empty") {
             line_stream >> token;
             aut_to_test_emptiness = get_aut_num(token);
