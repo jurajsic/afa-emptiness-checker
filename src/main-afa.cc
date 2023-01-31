@@ -61,6 +61,7 @@ int main(int argc, char** argv) {
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end-start;
         std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
+        std::cout << "mintermization: " << elapsed_seconds.count() << std::endl;
 
         bool is_empty;
         if (use_forward) {

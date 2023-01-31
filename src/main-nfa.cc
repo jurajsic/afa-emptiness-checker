@@ -106,6 +106,7 @@ int main(int argc, char** argv) {
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end-start;
         std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
+        std::cout << "mintermization: " << elapsed_seconds.count() << std::endl;
 
         std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
         Mata::OnTheFlyAlphabet alphabet;
