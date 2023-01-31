@@ -1,13 +1,16 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <chrono>
+#include <exception>
+
 #include <mata/inter-aut.hh>
 #include <mata/mintermization.hh>
 #include <mata/afa.hh>
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "ERROR: Program expects at least input file as argument, try '--help' for help" << std::endl;
+        std::cerr << "error: Program expects at least input file as argument, try '--help' for help" << std::endl;
         return -1;
     }
 
@@ -39,44 +42,49 @@ int main(int argc, char** argv) {
     }
 
     if (input_name == "") {
-        std::cout << "ERROR: no input file given, try '--help' for help" << std::endl;
+        std::cerr << "error: no input file given, try '--help' for help" << std::endl;
         return -1;
     }
 
     std::ifstream input(input_name);
     if (!input.is_open()) {
-        std::cerr << "ERROR: could not open file " << input_name << std::endl;
+        std::cerr << "error: could not open file " << input_name << std::endl;
         return -1;
     }
 
-    std::cerr << "Starting mintermization" << std::endl;
-    auto start = std::chrono::steady_clock::now();
-    Mata::Mintermization mintermization;
-    auto mintermized_input = mintermization.mintermize(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(input))[0]);
-    Mata::Nfa::OnTheFlyAlphabet alphabet;
-    Mata::Afa::Afa result = Mata::Afa::construct(mintermized_input, &alphabet);
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end-start;
-    std::cerr << "Time of mintermization: " << elapsed_seconds.count() << std::endl;
+    try {
+        auto start = std::chrono::steady_clock::now();
+        Mata::Mintermization mintermization;
+        auto mintermized_input = mintermization.mintermize(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(input))[0]);
+        Mata::Nfa::OnTheFlyAlphabet alphabet;
+        Mata::Afa::Afa result = Mata::Afa::construct(mintermized_input, &alphabet);
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end-start;
+        std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
 
-    bool is_empty;
-    if (use_forward) {
-        if (use_new) {
-            is_empty = Mata::Afa::antichain_concrete_forward_emptiness_test_new(result);
+        bool is_empty;
+        if (use_forward) {
+            if (use_new) {
+                is_empty = Mata::Afa::antichain_concrete_forward_emptiness_test_new(result);
+            } else {
+                is_empty = Mata::Afa::antichain_concrete_forward_emptiness_test_old(result);
+            }
         } else {
-            is_empty = Mata::Afa::antichain_concrete_forward_emptiness_test_old(result);
+            if (use_new) {
+                is_empty = Mata::Afa::antichain_concrete_backward_emptiness_test_new(result);
+            } else {
+                is_empty = Mata::Afa::antichain_concrete_backward_emptiness_test_old(result);
+            }
         }
-    } else {
-        if (use_new) {
-            is_empty = Mata::Afa::antichain_concrete_backward_emptiness_test_new(result);
-        } else {
-            is_empty = Mata::Afa::antichain_concrete_backward_emptiness_test_old(result);
-        }
-    }
 
-    if (is_empty) {
-        std::cout << "EMPTY" << std::endl;
-    } else {
-        std::cout << "NOT EMPTY" << std::endl;
+        if (is_empty) {
+            std::cout << "EMPTY" << std::endl;
+        } else {
+            std::cout << "NOT EMPTY" << std::endl;
+        }
+
+    } catch (const std::exception &exc) {
+        std::cerr << "error: " << exc.what();
+        return -1;
     }
 }
