@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
         auto start = std::chrono::steady_clock::now();
         Mata::Mintermization mintermization;
         auto mintermized_input = mintermization.mintermize(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(input))[0]);
-        Mata::Nfa::OnTheFlyAlphabet alphabet;
+        Mata::OnTheFlyAlphabet alphabet;
         Mata::Afa::Afa result = Mata::Afa::construct(mintermized_input, &alphabet);
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end-start;

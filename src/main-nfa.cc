@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
         std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
 
         std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
-        Mata::Nfa::OnTheFlyAlphabet alphabet;
+        Mata::OnTheFlyAlphabet alphabet;
         for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
             if (REDUCE_SIZE_OF_RESULT) {
                 num_to_aut[input_aut_nums[i]] = Mata::Nfa::reduce(Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet));
