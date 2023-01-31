@@ -78,9 +78,11 @@ int main(int argc, char** argv) {
         }
 
         if (is_empty) {
-            std::cout << "EMPTY" << std::endl;
+            std::cout << "result: EMPTY" << std::endl;
+            return 0;
         } else {
-            std::cout << "NOT EMPTY" << std::endl;
+            std::cout << "result: NOT EMPTY" << std::endl;
+            return 0;
         }
 
     } catch (const std::exception &exc) {

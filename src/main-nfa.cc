@@ -99,15 +99,13 @@ int main(int argc, char** argv) {
             }
         }
 
-
-        std::cerr << "Starting mintermization" << std::endl;
         auto start = std::chrono::steady_clock::now();
         Mata::Mintermization mintermization;
         auto mintermized_input_inter_auts = mintermization.mintermize(input_aut_inter_auts);
         input_aut_inter_auts.clear();
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end-start;
-        std::cerr << "Time of mintermization: " << elapsed_seconds.count() << std::endl;
+        std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
 
         std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
         Mata::Nfa::OnTheFlyAlphabet alphabet;
@@ -165,10 +163,10 @@ int main(int argc, char** argv) {
         };
 
         if (Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
-            std::cout << "EMPTY" << std::endl;
+            std::cout << "result: EMPTY" << std::endl;
             return 0;
         } else {
-            std::cout << "NOT EMPTY" << std::endl;
+            std::cout << "result: NOT EMPTY" << std::endl;
             return 0;
         }
 
