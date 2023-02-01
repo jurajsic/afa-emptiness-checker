@@ -140,6 +140,7 @@ int main(int argc, char** argv) {
                 // TODO remove this after we add minimization to complement
                 result = Mata::Nfa::reduce(result);
             } else {
+                result = getAutFromNum(first_operand_num);
                 while (operation_string_stream >> token) {
                     Mata::Nfa::Nfa &operand_nfa = getAutFromNum(get_aut_num(token));
                     // TODO: maybe add operation and/union of multiple automata to mata
