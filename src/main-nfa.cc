@@ -111,10 +111,12 @@ int main(int argc, char** argv) {
         std::unordered_map<unsigned, Mata::Nfa::Nfa> num_to_aut;
         Mata::OnTheFlyAlphabet alphabet;
         for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
+            auto constructed_aut = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
             if (REDUCE_SIZE_OF_RESULT) {
-                num_to_aut[input_aut_nums[i]] = Mata::Nfa::reduce(Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet));
+                constructed_aut.trim();
+                num_to_aut[input_aut_nums[i]] = Mata::Nfa::reduce(constructed_aut);
             } else {
-                num_to_aut[input_aut_nums[i]] = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
+                num_to_aut[input_aut_nums[i]] = constructed_aut;
             }
         }
 
@@ -152,10 +154,12 @@ int main(int argc, char** argv) {
                         result = Mata::Nfa::intersection(result, operand_nfa);
                     }
                     if (REDUCE_SIZE_AFTER_OPERATION) {
+                        result.trim();
                         result = Mata::Nfa::reduce(result);
                     }
                 }
                 if (REDUCE_SIZE_OF_RESULT && !REDUCE_SIZE_AFTER_OPERATION) {
+                    result.trim();
                     result = Mata::Nfa::reduce(result);
                 }
             }
