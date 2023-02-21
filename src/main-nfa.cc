@@ -52,7 +52,10 @@ int main(int argc, char** argv) {
         std::unordered_map<unsigned, std::istringstream> num_to_operation;
         std::vector<unsigned> input_aut_nums;
         std::vector<Mata::IntermediateAut> input_aut_inter_auts;
-        unsigned aut_to_test_emptiness;
+        unsigned aut_to_test_emptiness = -1;
+        bool test_inclusion = false;
+        unsigned aut_to_test_incl1 = -1;
+        unsigned aut_to_test_incl2 = -1;
         while(std::getline(input, line)) {
             line.erase(std::remove(line.begin(), line.end(), '('), line.end());
             line.erase(std::remove(line.begin(), line.end(), ')'), line.end());
@@ -91,6 +94,12 @@ int main(int argc, char** argv) {
             } else if (token == "is_empty") {
                 line_stream >> token;
                 aut_to_test_emptiness = get_aut_num(token);
+            } else if (token == "incl") {
+                line_stream >> token;
+                aut_to_test_incl1 = get_aut_num(token);
+                line_stream >> token;
+                aut_to_test_incl2 = get_aut_num(token);
+                test_inclusion = true;
             } else {
                 unsigned res_aut_num = get_aut_num(token);
                 line_stream >> token; //'='
@@ -168,7 +177,7 @@ int main(int argc, char** argv) {
             return num_to_aut.at(aut_num);
         };
 
-        if (Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
+        if ((test_inclusion && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) || Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
             std::cout << "result: EMPTY" << std::endl;
             return 0;
         } else {
