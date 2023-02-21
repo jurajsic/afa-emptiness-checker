@@ -177,12 +177,22 @@ int main(int argc, char** argv) {
             return num_to_aut.at(aut_num);
         };
 
-        if ((test_inclusion && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) || Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
-            std::cout << "result: EMPTY" << std::endl;
-            return 0;
+        if (test_inclusion) {
+            if (Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) {
+                std::cout << "result: EMPTY" << std::endl;
+                return 0;
+            } else {
+                std::cout << "result: NOT EMPTY" << std::endl;
+                return 0;
+            }
         } else {
-            std::cout << "result: NOT EMPTY" << std::endl;
-            return 0;
+            if (Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
+                std::cout << "result: EMPTY" << std::endl;
+                return 0;
+            } else {
+                std::cout << "result: NOT EMPTY" << std::endl;
+                return 0;
+            }
         }
 
     } catch (const std::exception &exc) {
