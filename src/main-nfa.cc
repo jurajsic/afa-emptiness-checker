@@ -56,6 +56,9 @@ int main(int argc, char** argv) {
         bool test_inclusion = false;
         unsigned aut_to_test_incl1 = -1;
         unsigned aut_to_test_incl2 = -1;
+        std::chrono::steady_clock::time_point start;
+        std::chrono::steady_clock::time_point end;
+        std::chrono::duration<double> elapsed_seconds_parsing;
         while(std::getline(input, line)) {
             line.erase(std::remove(line.begin(), line.end(), '('), line.end());
             line.erase(std::remove(line.begin(), line.end(), ')'), line.end());
@@ -90,7 +93,10 @@ int main(int argc, char** argv) {
                         aut_with_split_transitions << line << std::endl;
                     }
                 }
+                start = std::chrono::steady_clock::now();
                 input_aut_inter_auts.push_back(Mata::IntermediateAut::parse_from_mf(Mata::Parser::parse_mf(aut_with_split_transitions, true))[0]);
+                end = std::chrono::steady_clock::now();
+                elapsed_seconds_parsing += end-start;
             } else if (token == "is_empty") {
                 line_stream >> token;
                 aut_to_test_emptiness = get_aut_num(token);
@@ -108,11 +114,14 @@ int main(int argc, char** argv) {
             }
         }
 
-        auto start = std::chrono::steady_clock::now();
+        std::cerr << "parsing: " << elapsed_seconds_parsing.count() << std::endl;
+        std::cout << "parsing: " << elapsed_seconds_parsing.count() << std::endl;
+
+        start = std::chrono::steady_clock::now();
         Mata::Mintermization mintermization;
         auto mintermized_input_inter_auts = mintermization.mintermize(input_aut_inter_auts);
         input_aut_inter_auts.clear();
-        auto end = std::chrono::steady_clock::now();
+        end = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed_seconds = end-start;
         std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
         std::cout << "mintermization: " << elapsed_seconds.count() << std::endl;
