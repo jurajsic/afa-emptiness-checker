@@ -10,7 +10,7 @@
 #include <mata/inter-aut.hh>
 #include <mata/mintermization.hh>
 
-#include <vata/explicit_finite_aut.hh>
+#include <vata/explicit_tree_aut.hh>
 #include <vata/parsing/timbuk_parser.hh>
 
 // TODO: set this by arguments?
@@ -29,7 +29,7 @@ unsigned get_aut_num(std::string aut_string) {
     }
 }
 
-VATA::ExplicitFiniteAut mataToVata(const Mata::Nfa::Nfa &nfa, const std::string &header, VATA::Parsing::TimbukParser &parser) {
+VATA::ExplicitTreeAut mataToVata(const Mata::Nfa::Nfa &nfa, const std::string &header, VATA::Parsing::TimbukParser &parser) {
     std::stringstream ss;
     ss << header;
     ss << "States";
@@ -47,7 +47,7 @@ VATA::ExplicitFiniteAut mataToVata(const Mata::Nfa::Nfa &nfa, const std::string 
     for (const auto &tran : nfa.delta) {
         ss << "a" << tran.symb << "(q" << tran.src << ") -> q" << tran.tgt << std::endl;
     }
-    VATA::ExplicitFiniteAut result;
+    VATA::ExplicitTreeAut result;
     result.LoadFromString(parser, ss.str());
     return result;
 }
@@ -144,27 +144,31 @@ int main(int argc, char** argv) {
         std::cerr << "mintermization: " << elapsed_seconds.count() << std::endl;
         std::cout << "mintermization: " << elapsed_seconds.count() << std::endl;
 
-        std::unordered_map<unsigned, VATA::ExplicitFiniteAut> num_to_aut;
+        std::unordered_map<unsigned, VATA::ExplicitTreeAut> num_to_aut;
         VATA::Parsing::TimbukParser parser;
         Mata::OnTheFlyAlphabet alphabet;
+        std::vector<Mata::Nfa::Nfa> mintermized_nfas;
         for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
-            auto constructed_aut = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
-            std::stringstream ss;
-            ss << "Ops";
-            for (Mata::Symbol s : alphabet.get_alphabet_symbols()) {
-                ss << " a" << s << ":1";
-            }
-            ss << " x:0" << std::endl << std::endl << "Automaton A" << std::endl;
+            mintermized_nfas.push_back(Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet));
+        }
+
+        std::stringstream ss;
+        ss << "Ops";
+        for (Mata::Symbol s : alphabet.get_alphabet_symbols()) {
+            ss << " a" << s << ":1";
+        }
+        ss << " x:0" << std::endl << std::endl << "Automaton A" << std::endl;
+
+        for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
             if (REDUCE_SIZE_OF_RESULT) {
-                constructed_aut.trim();
-                num_to_aut[input_aut_nums[i]] = mataToVata(Mata::Nfa::reduce(constructed_aut), ss.str(), parser);
+                num_to_aut[input_aut_nums[i]] = mataToVata(mintermized_nfas[i], ss.str(), parser).Reduce();
             } else {
-                num_to_aut[input_aut_nums[i]] = mataToVata(constructed_aut, ss.str(), parser);
+                num_to_aut[input_aut_nums[i]] = mataToVata(mintermized_nfas[i], ss.str(), parser);
             }
         }
 
-        std::function<VATA::ExplicitFiniteAut& (unsigned)> getAutFromNum;
-        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet](unsigned aut_num) -> VATA::ExplicitFiniteAut& {
+        std::function<VATA::ExplicitTreeAut& (unsigned)> getAutFromNum;
+        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet](unsigned aut_num) -> VATA::ExplicitTreeAut& {
             auto it = num_to_aut.find(aut_num);
             if (it != num_to_aut.end()) {
                 return it->second;
@@ -177,20 +181,26 @@ int main(int argc, char** argv) {
             std::string token;
             operation_string_stream >> token;
             unsigned first_operand_num = get_aut_num(token);
-            VATA::ExplicitFiniteAut result;
+            VATA::ExplicitTreeAut result;
 
             if (operation == "compl") {
                 result = getAutFromNum(first_operand_num).Complement();
             } else {
                 result = getAutFromNum(first_operand_num);
                 while (operation_string_stream >> token) {
-                    VATA::ExplicitFiniteAut &operand_nfa = getAutFromNum(get_aut_num(token));
+                    VATA::ExplicitTreeAut &operand_nfa = getAutFromNum(get_aut_num(token));
                     // TODO: maybe add operation and/union of multiple automata to mata
                     if (operation == "union") {
-                        result = VATA::ExplicitFiniteAut::Union(result, operand_nfa);
+                        result = VATA::ExplicitTreeAut::Union(result, operand_nfa);
                     } else { //intersection
-                        result = VATA::ExplicitFiniteAut::Intersection(result, operand_nfa);
+                        result = VATA::ExplicitTreeAut::Intersection(result, operand_nfa);
                     }
+                    if (REDUCE_SIZE_AFTER_OPERATION) {
+                        result = result.Reduce();
+                    }
+                }
+                if (REDUCE_SIZE_OF_RESULT && !REDUCE_SIZE_AFTER_OPERATION) {
+                    result = result.Reduce();
                 }
             }
 
@@ -199,7 +209,10 @@ int main(int argc, char** argv) {
         };
 
         if (test_inclusion) {
-            if (VATA::ExplicitFiniteAut::CheckInclusion(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) {
+            VATA::InclParam inclParams;
+            inclParams.SetAlgorithm(VATA::InclParam::e_algorithm::antichains);
+            inclParams.SetDirection(VATA::InclParam::e_direction::upward);
+            if (VATA::ExplicitTreeAut::CheckInclusion(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2), inclParams)) {
                 std::cout << "result: EMPTY" << std::endl;
                 return 0;
             } else {
@@ -207,10 +220,7 @@ int main(int argc, char** argv) {
                 return 0;
             }
         } else {
-            Mata::Nfa::Nfa empty_aut;
-            auto s = empty_aut.add_state();
-            empty_aut.initial.add(s);
-            if (VATA::ExplicitFiniteAut::CheckInclusion(getAutFromNum(aut_to_test_emptiness), mataToVata(empty_aut, "Ops x:0\n\nAutomaton A\n", parser))) {
+            if (getAutFromNum(aut_to_test_emptiness).IsLangEmpty()) {
                 std::cout << "result: EMPTY" << std::endl;
                 return 0;
             } else {
