@@ -9,45 +9,66 @@
 #include <mata/inter-aut.hh>
 #include <mata/mintermization.hh>
 
-// TODO: set this by arguments?
-// the size of the automaton should be reduced after loading it, or when it is assigned the result of operation
-const bool REDUCE_SIZE_OF_RESULT = true;
-
-// during computing union/intersection of automata, the result is reduced after 
-const bool REDUCE_SIZE_AFTER_OPERATION = true;
 
 unsigned get_aut_num(std::string aut_string) {
     if (aut_string.compare(0, 3, "aut") == 0) {
         return std::stoul(aut_string.substr(3));
     } else {
-        std::cerr << "Expecting autN, something else was found" << std::endl;
-        exit(-1);
+        throw std::runtime_error("Expecting autN, something else was found");
     }
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        std::cerr << "error: Program expects exactly one argument, try '--help' for help" << std::endl;
-        return -1;
-    }
-
-    std::string arg = std::string(argv[1]);
-
-    if (arg == "-h" || arg == "--help") {
-        std::cout << "Usage: nfa-emptiness-checker input.emp" << std::endl;
-        return 0;
-    }
-
-    std::filesystem::path path_to_input(arg);
-    std::filesystem::path path_to_automata = std::filesystem::absolute(path_to_input).parent_path()/"gen_aut";
-
-    std::ifstream input(path_to_input);
-    if (!input.is_open()) {
-        std::cerr << "error: could not open file " << path_to_input << std::endl;
-        return -1;
-    }
-
     try {
+        std::string input_emp_name;
+        
+        // the size of the automaton should be reduced when it is assigned the result of operation
+        bool REDUCE_SIZE_OF_RESULT = true;
+        // the size of the automaton should be reduced after loading it
+        bool REDUCE_SIZE_OF_INPUT = true;
+        // during computing union/intersection of automata, the result is reduced after 
+        bool REDUCE_SIZE_AFTER_OPERATION = true;
+
+        bool use_antichain_incl = true;
+
+        for (int arg_i = 1; arg_i < argc; ++arg_i) {
+            std::string arg = std::string(argv[arg_i]);
+
+            if (arg == "-h" || arg == "--help") {
+                std::cout << "Usage: nfa-emptiness-checker [--no-operation-reduce] [--no-result-reduce] [--simple-inclusion] input.emp" << std::endl << std::endl;
+                std::cout << "            --no-operation-reduce     do not reduce automaton after each intersection/union, only after all" << std::endl;
+                std::cout << "            --no-result-reduce        do not reduce automaton on the final result of intersection/union/complement" << std::endl;
+                std::cout << "            --simple-inclusion     do not use antichains for inclusion" << std::endl;
+                return 0;
+            } else if (arg == "--no-operation-reduce") {
+                REDUCE_SIZE_AFTER_OPERATION = false;
+            } else if (arg == "--no-result-reduce") {
+                REDUCE_SIZE_OF_RESULT = false;
+            } else if (arg == "--simple-inclusion") {
+                use_antichain_incl = false;
+            } else {
+                if (input_emp_name.empty()) {
+                    input_emp_name = arg;
+                } else {
+                    throw std::runtime_error("Either some argument is not supported or more than one file was given (try '--help')");
+                    exit(-1);
+                }
+            }
+        }
+
+        if (input_emp_name.empty()) {
+            throw std::runtime_error("No input given (try --help)");
+            exit(-1);
+        }
+
+        std::filesystem::path path_to_input(input_emp_name);
+        std::filesystem::path path_to_automata = std::filesystem::absolute(path_to_input).parent_path()/"gen_aut";
+
+        std::ifstream input(path_to_input);
+        if (!input.is_open()) {
+            throw std::runtime_error("could not open file ");
+        }
+
         std::string line;
         std::unordered_map<unsigned, std::istringstream> num_to_operation;
         std::vector<unsigned> input_aut_nums;
@@ -72,8 +93,7 @@ int main(int argc, char** argv) {
                 std::filesystem::path path_to_automaton = path_to_automata/(token + ".mata");
                 std::ifstream aut_file(path_to_automaton);
                 if (!aut_file.is_open()) {
-                    std::cerr << "error: Could not open file " << path_to_automaton << std::endl;
-                    return -1;
+                    throw std::runtime_error(std::string("Could not open file ") + path_to_automaton.string());
                 }
                 input_aut_nums.push_back(load_aut_num);
                 std::stringstream aut_with_split_transitions;
@@ -130,8 +150,7 @@ int main(int argc, char** argv) {
         Mata::OnTheFlyAlphabet alphabet;
         for (unsigned i = 0; i < mintermized_input_inter_auts.size(); ++i) {
             auto constructed_aut = Mata::Nfa::construct(mintermized_input_inter_auts[i], &alphabet);
-            if (REDUCE_SIZE_OF_RESULT) {
-                constructed_aut.trim();
+            if (REDUCE_SIZE_OF_INPUT) {
                 num_to_aut[input_aut_nums[i]] = Mata::Nfa::reduce(constructed_aut);
             } else {
                 num_to_aut[input_aut_nums[i]] = constructed_aut;
@@ -139,7 +158,7 @@ int main(int argc, char** argv) {
         }
 
         std::function<Mata::Nfa::Nfa& (unsigned)> getAutFromNum;
-        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet](unsigned aut_num) -> Mata::Nfa::Nfa& {
+        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet, REDUCE_SIZE_AFTER_OPERATION, REDUCE_SIZE_OF_RESULT](unsigned aut_num) -> Mata::Nfa::Nfa& {
             auto it = num_to_aut.find(aut_num);
             if (it != num_to_aut.end()) {
                 return it->second;
@@ -172,12 +191,10 @@ int main(int argc, char** argv) {
                         result = Mata::Nfa::intersection(result, operand_nfa);
                     }
                     if (REDUCE_SIZE_AFTER_OPERATION) {
-                        result.trim();
                         result = Mata::Nfa::reduce(result);
                     }
                 }
                 if (REDUCE_SIZE_OF_RESULT && !REDUCE_SIZE_AFTER_OPERATION) {
-                    result.trim();
                     result = Mata::Nfa::reduce(result);
                 }
             }
@@ -187,7 +204,8 @@ int main(int argc, char** argv) {
         };
 
         if (test_inclusion) {
-            if (Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) {
+            if ((use_antichain_incl && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) ||
+               (!use_antichain_incl && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2), &alphabet, {{"algorithm", "naive"}}))) {
                 std::cout << "result: EMPTY" << std::endl;
                 return 0;
             } else {
