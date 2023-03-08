@@ -31,14 +31,17 @@ int main(int argc, char** argv) {
 
         bool use_antichain_incl = true;
 
+        bool minimize_complement = false;
+
         for (int arg_i = 1; arg_i < argc; ++arg_i) {
             std::string arg = std::string(argv[arg_i]);
 
             if (arg == "-h" || arg == "--help") {
-                std::cout << "Usage: nfa-emptiness-checker [--no-operation-reduce] [--no-result-reduce] [--simple-inclusion] input.emp" << std::endl << std::endl;
+                std::cout << "Usage: nfa-emptiness-checker [--no-operation-reduce] [--no-result-reduce] [--simple-inclusion] [--minimize-complement] input.emp" << std::endl << std::endl;
                 std::cout << "            --no-operation-reduce     do not reduce automaton after each intersection/union, only after all" << std::endl;
                 std::cout << "            --no-result-reduce        do not reduce automaton on the final result of intersection/union/complement" << std::endl;
-                std::cout << "            --simple-inclusion     do not use antichains for inclusion" << std::endl;
+                std::cout << "            --simple-inclusion        do not use antichains for inclusion" << std::endl;
+                std::cout << "            --minimize-complement     minimize the deterministic automaton computed in complement (if it is not set, reduction happens based on the other parameters)" << std::endl;
                 return 0;
             } else if (arg == "--no-operation-reduce") {
                 REDUCE_SIZE_AFTER_OPERATION = false;
@@ -46,6 +49,8 @@ int main(int argc, char** argv) {
                 REDUCE_SIZE_OF_RESULT = false;
             } else if (arg == "--simple-inclusion") {
                 use_antichain_incl = false;
+            } else if (arg == "--minimize-complement") {
+                minimize_complement = true;
             } else {
                 if (input_emp_name.empty()) {
                     input_emp_name = arg;
@@ -158,7 +163,7 @@ int main(int argc, char** argv) {
         }
 
         std::function<Mata::Nfa::Nfa& (unsigned)> getAutFromNum;
-        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet, REDUCE_SIZE_AFTER_OPERATION, REDUCE_SIZE_OF_RESULT](unsigned aut_num) -> Mata::Nfa::Nfa& {
+        getAutFromNum = [&num_to_aut, &num_to_operation, &getAutFromNum, &alphabet, REDUCE_SIZE_AFTER_OPERATION, REDUCE_SIZE_OF_RESULT, minimize_complement](unsigned aut_num) -> Mata::Nfa::Nfa& {
             auto it = num_to_aut.find(aut_num);
             if (it != num_to_aut.end()) {
                 return it->second;
@@ -174,10 +179,14 @@ int main(int argc, char** argv) {
             Mata::Nfa::Nfa result;
 
             if (operation == "compl") {
-                // TODO add minimization into the determinization which is done during the complement (and remove sink states of complement automaton)
-                result = Mata::Nfa::complement(getAutFromNum(first_operand_num), alphabet);
-                // TODO remove this after we add minimization to complement
-                result = Mata::Nfa::reduce(result);
+                if (minimize_complement) {
+                    result = Mata::Nfa::complement(getAutFromNum(first_operand_num), alphabet, {{"algorithm", "classical"}, {"minimize", "true"}});
+                } else {
+                    result = Mata::Nfa::complement(getAutFromNum(first_operand_num), alphabet);
+                    if (REDUCE_SIZE_OF_RESULT || REDUCE_SIZE_AFTER_OPERATION) {
+                        result = Mata::Nfa::reduce(result);
+                    }
+                }
             } else {
                 result = getAutFromNum(first_operand_num);
                 while (operation_string_stream >> token) {
@@ -204,13 +213,33 @@ int main(int argc, char** argv) {
         };
 
         if (test_inclusion) {
-            if ((use_antichain_incl && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) ||
-               (!use_antichain_incl && Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2), &alphabet, {{"algorithm", "naive"}}))) {
-                std::cout << "result: EMPTY" << std::endl;
-                return 0;
+            if (use_antichain_incl) {
+                if (Mata::Nfa::is_included(getAutFromNum(aut_to_test_incl1), getAutFromNum(aut_to_test_incl2))) {
+                    std::cout << "result: EMPTY" << std::endl;
+                    return 0;
+                } else {
+                    std::cout << "result: NOT EMPTY" << std::endl;
+                    return 0;
+                }
             } else {
-                std::cout << "result: NOT EMPTY" << std::endl;
-                return 0;
+                Mata::Nfa::Nfa incl_aut = getAutFromNum(aut_to_test_incl2);
+                if (minimize_complement) {
+                    incl_aut = Mata::Nfa::complement(incl_aut, alphabet, {{"algorithm", "classical"}, {"minimize", "true"}});
+                } else {
+                    incl_aut = Mata::Nfa::complement(incl_aut, alphabet);
+                    if (REDUCE_SIZE_OF_RESULT || REDUCE_SIZE_AFTER_OPERATION) {
+                        incl_aut = Mata::Nfa::reduce(incl_aut);
+                    }
+                }
+                incl_aut = Mata::Nfa::intersection(getAutFromNum(aut_to_test_incl1), incl_aut);
+                
+                if (Mata::Nfa::is_lang_empty(incl_aut)) {
+                    std::cout << "result: EMPTY" << std::endl;
+                    return 0;
+                } else {
+                    std::cout << "result: NOT EMPTY" << std::endl;
+                    return 0;
+                }
             }
         } else {
             if (Mata::Nfa::is_lang_empty(getAutFromNum(aut_to_test_emptiness))) {
